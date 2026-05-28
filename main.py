@@ -63,65 +63,22 @@ class Main:
 				"App not found"
 		return appList
 
-	def GetDirContent(self, dir, appContents, appendPath=False):
-		cmd=self.ComposeCmd("ls '{}'".format(dir))
-		for appContent in (self.globalVariables.ExecuteCommand(cmd).strip()).split("\n"):
-			try:
-				if appendPath:
-					appContents.append(dir.replace("\"","")+appContent.strip())
+	def ListApplication(self, isHide=False):
+		self.device=self.mainWin.cmbDevice.currentText()
+		appList=self.GetApplicationList()
+		self.mainWin.cmbApp.clear()
+		for app in appList:
+			if isHide:
+				if app.find("com.android") == 0 or app.find("com.google") == 0:
+					continue
 				else:
-					appContents.append(appContent.strip())
-			except:
-				"No app content found"
+					self.mainWin.cmbApp.addItem(app)
+			else:
+				self.mainWin.cmbApp.addItem(app)
 
-	def GetApplicationContent(self, appName):
-		appContents=[]
-		self.GetDirContent("/data/data/{}".format(appName), appContents)
-		cmd="{} | {} {}".format(self.ComposeCmd("ls /sdcard/Android/data/"), self.globalVariables.isWindowsOS and "findstr" or "grep", self.mainWin.cmbApp.currentText())
-		appDir=self.globalVariables.ExecuteCommand(cmd).strip()
-		if appDir != "":
-			self.GetDirContent("/sdcard/Android/data/"+appName+"/", appContents, True)
-		return appContents
-
-	'''def IsDirectory(self, path):
-		cmd=self.ComposeCmd("cat '"+path+"'")
-		cmdOutput=self.globalVariables.ExecuteCommand(cmd).strip()
-		if cmdOutput.find("Is a directory") != -1:
-			return True
-		return False'''
-
-	def BuildFileStructure(self, appName, dirPath):
-		if (dirPath.find("/sdcard") == 0):
-			cmd=self.ComposeCmd("ls -R '"+dirPath+"'")
-		else:
-			cmd=self.ComposeCmd("ls -R '/data/data/"+appName+"/"+dirPath+"'")
-		fileList=[]
-		directory=""
-		for dirContent in (self.globalVariables.ExecuteCommand(cmd).strip()).split("\n"):
-			try:
-				dirContent=dirContent.strip()
-				if dirContent:
-					if dirContent.find(":") != -1 and len(dirContent) == dirContent.find(":")+1:
-						directory = dirContent[:-1]
-					else:
-						file=directory+"/"+dirContent
-						fileList.append(file.replace("//","/"))
-			except:
-				"No file found"
-		return fileList
-
-	def GetFileContent(self, path):
-		path=path.replace(" ", "\\ ").replace("//","/")
-		cmd=self.ComposeCmd("cat '"+path+"'")
-		return self.globalVariables.ExecuteCommand(cmd).strip()
-
-	def DownloadDBFile(self, filePath, outputPath):
-		filePath=filePath.replace(" ", "\\ ").replace("//","/")
-		if self.isSuNeeded:
-			cmd="{} > {}".format(self.ComposeCmd("cat '"+filePath+"'"),outputPath)
-		else:
-			cmd="-s "+self.device+" pull "+filePath+" \""+outputPath+"\""
-		self.globalVariables.ExecuteCommand(cmd)
+	def ApplicationSelectionChanged(self):
+		if not self.mainWin.chkLogcat.isChecked():
+			self.mainWin.chkLogcat.setChecked(True)
 
 	def GetAllTables(self, dbPath):
 		tables=[]
@@ -153,39 +110,6 @@ class Main:
 			self.ListApplication(True)
 		else:
 			self.ListApplication(False)
-
-	def ListApplication(self, isHide=False):
-		self.device=self.mainWin.cmbDevice.currentText()
-		appList=self.GetApplicationList()
-		self.mainWin.cmbApp.clear()
-		for app in appList:
-			if isHide:
-				if app.find("com.android") == 0 or app.find("com.google") == 0:
-					continue
-				else:
-					self.mainWin.cmbApp.addItem(app)
-			else:
-				self.mainWin.cmbApp.addItem(app)
-
-	def ListApplicationContent(self):
-		appName=self.mainWin.cmbApp.currentText()
-		appContents=self.GetApplicationContent(appName)
-		'''self.mainWin.lstAppDirs.clear()
-		for appContent in appContents:
-			self.mainWin.lstAppDirs.addItem(QListWidgetItem(appContent))'''
-
-	def ListFileFromDir(self):
-		'''if len(self.mainWin.lstAppDirs.selectedItems()) == 1:
-			appName=self.mainWin.cmbApp.currentText()
-			appDirName=str(self.mainWin.lstAppDirs.selectedItems()[0].text())
-
-			appDirFiles=self.BuildFileStructure(appName, appDirName)
-			self.mainWin.lstAppDirFiles.clear()
-			for file in appDirFiles:
-				self.mainWin.lstAppDirFiles.addItem(QListWidgetItem(file))
-		else:
-			print ("Multiple Item Selected")'''
-		print ("called")
 
 	def DisplayFileContent(self):
 		mainWin.chkLogcat.setChecked(False)
@@ -255,12 +179,18 @@ class Main:
 			mainWin.chkURLDecode.setVisible(False)
 			mainWin.chkHtmlDecode.setVisible(False)
 			mainWin.txtFileContent.setVisible(False)
+			mainWin.treeView.setVisible(False)
+			mainWin.splitter.setVisible(False)
 			mainWin.txtLogcat.setVisible(True)
+			mainWin.lblFileContent.setText("Logcat Logs")
 		else:
 			mainWin.chkHtmlDecode.setVisible(True)
 			mainWin.chkURLDecode.setVisible(True)
 			mainWin.txtFileContent.setVisible(True)
+			mainWin.treeView.setVisible(True)
+			mainWin.splitter.setVisible(True)
 			mainWin.txtLogcat.setVisible(False)
+			self.PullApplicationData()
 
 	def DecodeHTMLEntity(self):
 		text=self.mainWin.txtFileContent.toPlainText()
@@ -403,42 +333,42 @@ class Main:
 		self.HideDefaultApplication()
 
 if __name__ == "__main__":
-    app = QtWidgets.QApplication(sys.argv)
-    app.setWindowIcon(QtGui.QIcon('./Usage/icon.png'))
-    print (getBanner())
-    mainWin = Gui()
-    mainWin.show()
+	app = QtWidgets.QApplication(sys.argv)
+	app.setWindowIcon(QtGui.QIcon('./Usage/icon.png'))
+	print (getBanner())
+	mainWin = Gui()
+	mainWin.show()
 
-    main=Main(mainWin)
-    deviceList=main.GetDeviceList()
-    if len(deviceList) > 0:
-	    for device in deviceList:
-	    	mainWin.cmbDevice.addItem(device)
+	main=Main(mainWin)
+	deviceList=main.GetDeviceList()
+	if len(deviceList) > 0:
+		for device in deviceList:
+			mainWin.cmbDevice.addItem(device)
 
-	    mainWin.cmbDevice.currentIndexChanged.connect(lambda: main.ListApplication())
-	    mainWin.cmbApp.currentIndexChanged.connect(lambda: main.ListApplicationContent())
-	    mainWin.chkHideDefaultApp.stateChanged.connect(lambda: main.HideDefaultApplication())
-	    mainWin.chkSplitConfig.stateChanged.connect(lambda: main.ChangeSplitConfigValue())
-	    mainWin.chkLogcat.stateChanged.connect(lambda: main.DisplayLogcat())
-	    mainWin.chkHtmlDecode.stateChanged.connect(lambda: main.DecodeHTMLEntity())
-	    mainWin.chkURLDecode.stateChanged.connect(lambda: main.DecodeURL())
-	    mainWin.btnAPKTool.clicked.connect(lambda: main.RunAPKTool())
-	    mainWin.btnJDGUI.clicked.connect(lambda: main.RunJDGUITool())
-	    mainWin.btnMobSF.clicked.connect(lambda: main.RunMobSFTool())
-	    mainWin.btnReinstall.clicked.connect(lambda: main.RunReinstallAPK())
-	    mainWin.btnFridaSSLUnPin.clicked.connect(lambda: main.RunUniversalFridaSSLUnPinning())
-	    mainWin.btnFridump.clicked.connect(lambda: main.RunFridump())
-	    mainWin.btnReloadApps.clicked.connect(lambda: main.ReloadApplications())
-	    mainWin.btnPullData.clicked.connect(lambda: main.PullApplicationData())
-	    mainWin.chkLogcat.setChecked(True)
-	    mainWin.chkHtmlDecode.setVisible(False)
-	    mainWin.chkURLDecode.setVisible(False)
-	    logcat=Logcat(mainWin, mainWin.cmbDevice.currentText())
-	    logcat.start()
-	    main.ListApplication()
-	    sys.exit( app.exec() )
-    else:
-    	print ("No emulator found. Re-run the applicaiton after connecting device\n\n")
+		mainWin.cmbDevice.currentIndexChanged.connect(lambda: main.ListApplication())
+		mainWin.cmbApp.currentIndexChanged.connect(lambda: main.ApplicationSelectionChanged())
+		mainWin.chkHideDefaultApp.stateChanged.connect(lambda: main.HideDefaultApplication())
+		mainWin.chkSplitConfig.stateChanged.connect(lambda: main.ChangeSplitConfigValue())
+		mainWin.chkLogcat.stateChanged.connect(lambda: main.DisplayLogcat())
+		mainWin.chkHtmlDecode.stateChanged.connect(lambda: main.DecodeHTMLEntity())
+		mainWin.chkURLDecode.stateChanged.connect(lambda: main.DecodeURL())
+		mainWin.btnAPKTool.clicked.connect(lambda: main.RunAPKTool())
+		mainWin.btnJDGUI.clicked.connect(lambda: main.RunJDGUITool())
+		mainWin.btnMobSF.clicked.connect(lambda: main.RunMobSFTool())
+		mainWin.btnReinstall.clicked.connect(lambda: main.RunReinstallAPK())
+		mainWin.btnFridaSSLUnPin.clicked.connect(lambda: main.RunUniversalFridaSSLUnPinning())
+		mainWin.btnFridump.clicked.connect(lambda: main.RunFridump())
+		mainWin.btnReloadApps.clicked.connect(lambda: main.ReloadApplications())
+		mainWin.btnPullData.clicked.connect(lambda: main.PullApplicationData())
+		mainWin.chkLogcat.setChecked(True)
+		mainWin.chkHtmlDecode.setVisible(False)
+		mainWin.chkURLDecode.setVisible(False)
+		logcat=Logcat(mainWin, mainWin.cmbDevice.currentText())
+		logcat.start()
+		main.ListApplication()
+		sys.exit( app.exec() )
+	else:
+		print ("No emulator found. Re-run the applicaiton after connecting device\n\n")
 
 
 

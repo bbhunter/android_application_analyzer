@@ -14,7 +14,7 @@ class GlobalVariables:
 		self.jdGUIPath="./tools/jd-gui-1.6.6.jar"
 		self.signJar="./tools/uber-apk-signer-1.3.0.jar"
 		self.outputDir="./apps"
-		self.snapshotDir="./snapshots"
+		self.appDataDir="./appData"
 		self.burpCertName="burpcert.crt"
 		self.burpCertPath="./tools/{}".format(self.burpCertName)
 		self.mobSFURL="http://localhost:8000"
@@ -23,7 +23,7 @@ class GlobalVariables:
 		self.fridumpPath="./tools/fridump/fridump.py"
 		self.fridumpOutput="./dump/strings.txt"
 		self.fridasslunpinscript1="./tools/fridascript/UniversalSSLUnpinning.js"
-		self.androidtmpdir="/data/local/tmp/"
+		self.androidTmpDir="/data/local/tmp"
 		self.mobSFAPIKey=""
 		self.isWindowsOS=False
 
@@ -31,8 +31,8 @@ class GlobalVariables:
 			self.isWindowsOS = True
 		if not os.path.exists(self.outputDir):
 			os.mkdir(self.outputDir)
-		if not os.path.exists(self.snapshotDir):
-			os.mkdir(self.snapshotDir)
+		if not os.path.exists(self.appDataDir):
+			os.mkdir(self.appDataDir)
 
 	def InitializeMobSFVariables(self):
 		isSuccess=False
@@ -45,13 +45,23 @@ class GlobalVariables:
 			print ("Failed to initiate conection with MobSF!!")
 		return isSuccess
 
-	def ExecuteCommand(self, cmd, isADB=True, syncCall=True):
+	def ExecuteCommand(self, cmd, isADB=True, syncCall=True, getErrorMsg=False):
 		command = ""
 		output = ""
 		if isADB:
 			command = "adb " + cmd
 		else:
 			command = cmd
+
+		if getErrorMsg:
+			p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+			if syncCall:
+				stdout, stderr = p.communicate()
+				output = (stdout.decode("utf-8", errors="ignore") +
+							stderr.decode("utf-8", errors="ignore"))
+				p_status = p.wait()
+			return output
+
 		p = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True)
 		if syncCall:
 			output = p.communicate()[0].decode("utf-8", errors="ignore")

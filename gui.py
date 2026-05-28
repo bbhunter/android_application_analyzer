@@ -1,113 +1,316 @@
 import sys
+import os
+
 from PySide6 import QtCore, QtWidgets, QtGui
-from PySide6.QtWidgets import *
-from PySide6.QtCore import QSize, QRect
+from PySide6.QtWidgets import (
+    QMainWindow,
+    QWidget,
+    QGroupBox,
+    QLabel,
+    QComboBox,
+    QPushButton,
+    QTextEdit,
+    QCheckBox,
+    QHBoxLayout,
+    QVBoxLayout,
+    QSizePolicy,
+    QFileDialog,
+    QTreeView,
+    QFileSystemModel,
+    QSplitter,
+    QStackedWidget,
+    QMessageBox
+)
+
+from PySide6.QtCore import QSize, Qt
+
 from GlobalVariables import *
 
+
 class Gui(QMainWindow):
+
     def __init__(self):
         super().__init__()
-        self.setMinimumSize(QSize(1100, 700))
+
+        self.setMinimumSize(QSize(1200, 700))
         self.setWindowTitle("Android Application Analyzer")
 
         centralWidget = QWidget(self)
         self.setCentralWidget(centralWidget)
 
+        rootLayout = QVBoxLayout(centralWidget)
+        rootLayout.setContentsMargins(8, 8, 8, 8)
+        rootLayout.setSpacing(6)
+
         quit_action = QtGui.QAction("Quit", self)
         quit_action.triggered.connect(self.close)
 
-        globalVariables = GlobalVariables()
-        defaultSize = 40
-        topMargin = 5
-        funBtnStartPost = 65
-        variation = 0
-        if globalVariables.isWindowsOS:
-            defaultSize = 25
-            topMargin = 10
-            funBtnStartPost = 70
-            variation = 5
+        # ─────────────────────────────────────────────────────────────
+        # Row 1 : Device | App | Reload | Hide Default Apps
+        # ─────────────────────────────────────────────────────────────
+        row1 = QHBoxLayout()
+        row1.setSpacing(6)
 
-        # Device label + combobox
-        self.device_lable = QLabel("Select Device", centralWidget)
-        self.device_lable.setGeometry(QRect(10, topMargin, 85, defaultSize))
-        self.cmbDevice = QComboBox(centralWidget)
-        self.cmbDevice.setGeometry(QRect(95, topMargin, 400, defaultSize))
+        self.device_lable = QLabel("Select Device")
+
+        self.cmbDevice = QComboBox()
         self.cmbDevice.setObjectName("cmbDevice")
+        self.cmbDevice.setSizePolicy(
+            QSizePolicy.Expanding,
+            QSizePolicy.Fixed
+        )
 
-        # Application label + combobox
-        self.app_label = QLabel("Select Application", centralWidget)
-        self.app_label.setGeometry(QRect(510, topMargin, 110, defaultSize))
-        self.cmbApp = QComboBox(centralWidget)
-        self.cmbApp.setGeometry(QRect(620, topMargin, 375 - variation, defaultSize))
+        self.app_label = QLabel("Select Application")
+
+        self.cmbApp = QComboBox()
         self.cmbApp.setObjectName("cmbApp")
+        self.cmbApp.setSizePolicy(
+            QSizePolicy.Expanding,
+            QSizePolicy.Fixed
+        )
 
-        # Reload / Snapshot
-        self.btnReloadApps = QPushButton("Reload", centralWidget)
-        self.btnReloadApps.setGeometry(QRect(920, 35 + variation, 75 - variation, defaultSize))
+        self.btnReloadApps = QPushButton("Reload")
 
-        self.btnSnapshot = QPushButton("Snapshot", centralWidget)
-        self.btnSnapshot.setGeometry(QRect(995, topMargin, 100, defaultSize))
+        self.chkHideDefaultApp = QCheckBox("Hide Default Apps")
 
-        # Directories
-        self.appDirs = QLabel("Select Directory", centralWidget)
-        self.appDirs.setGeometry(QRect(10, 40, 250, defaultSize))
-        self.lstAppDirs = QListWidget(centralWidget)
-        self.lstAppDirs.setGeometry(QRect(10, 75 - variation, 250, 145))
+        row1.addWidget(self.device_lable)
+        row1.addWidget(self.cmbDevice)
 
-        self.appDirFiles = QLabel("Select File", centralWidget)
-        self.appDirFiles.setGeometry(QRect(270, 40, 480, defaultSize))
-        self.lstAppDirFiles = QListWidget(centralWidget)
-        self.lstAppDirFiles.setGeometry(QRect(270, 75 - variation, 720, 145))
+        row1.addSpacing(10)
 
-        # Tool buttons
-        self.btnJDGUI = QPushButton("jdgui", centralWidget)
-        self.btnJDGUI.setGeometry(QRect(995, funBtnStartPost, 100, defaultSize))
+        row1.addWidget(self.app_label)
+        row1.addWidget(self.cmbApp)
 
-        funBtnStartPost += 40
-        self.btnMobSF = QPushButton("mobSF", centralWidget)
-        self.btnMobSF.setGeometry(QRect(995, funBtnStartPost, 100, defaultSize))
+        row1.addWidget(self.chkHideDefaultApp)
 
-        funBtnStartPost += 40
-        self.btnAPKTool = QPushButton("apktool", centralWidget)
-        self.btnAPKTool.setGeometry(QRect(995, funBtnStartPost, 100, defaultSize))
+        row1.addSpacing(10)
 
-        funBtnStartPost += 40
-        self.btnReinstall = QPushButton("re-install", centralWidget)
-        self.btnReinstall.setGeometry(QRect(995, funBtnStartPost, 100, defaultSize))
+        row1.addWidget(self.btnReloadApps)
 
-        # Frida buttons
-        self.btnFridaSSLUnPin = QPushButton("frida-sslunpin", centralWidget)
-        self.btnFridaSSLUnPin.setGeometry(QRect(720, 220 + variation, 120 - variation, defaultSize))
+        rootLayout.addLayout(row1)
 
-        self.btnFridump = QPushButton("fridump", centralWidget)
-        self.btnFridump.setGeometry(QRect(840, 220 + variation, 100 - variation, defaultSize))
+        # ─────────────────────────────────────────────────────────────
+        # Row 2 : Tool buttons
+        # ─────────────────────────────────────────────────────────────
+        row2 = QHBoxLayout()
+        row2.setSpacing(6)
 
-        # File content section
-        self.lblFileContent = QLabel("File Content", centralWidget)
-        self.lblFileContent.setGeometry(QRect(10, 230, 250, defaultSize))
+        self.btnPullData = QPushButton("Pull App Data")
+        self.btnJDGUI = QPushButton("jdgui")
+        self.btnMobSF = QPushButton("mobSF")
+        self.btnAPKTool = QPushButton("apktool")
+        self.btnReinstall = QPushButton("re-install")
+        self.btnFridaSSLUnPin = QPushButton("frida-sslunpin")
+        self.btnFridump = QPushButton("fridump")
 
-        self.chkURLDecode = QCheckBox("URLDecode", centralWidget)
-        self.chkURLDecode.setGeometry(QRect(100, 230, 130, defaultSize))
+        self.chkURLDecode = QCheckBox("URL Decode")
+        self.chkHtmlDecode = QCheckBox("HTML Decode")
+        self.chkSplitConfig = QCheckBox("split-config")
 
-        self.chkHtmlDecode = QCheckBox("HTMLDecode", centralWidget)
-        self.chkHtmlDecode.setGeometry(QRect(200, 230, 130, defaultSize))
+        # NEW
+        self.chkLogcat = QCheckBox("Logcat")
+        self.chkLogcat.setChecked(True)
 
-        self.chkHideDefaultApp = QCheckBox("Hide Default Application", centralWidget)
-        self.chkHideDefaultApp.setGeometry(QRect(625 - variation, 35, 180, defaultSize))
+        # ------------------------------------------------------------
+        # Standard Tool Group
+        # ------------------------------------------------------------
 
-        self.chkSplitConfig = QCheckBox("split-config", centralWidget)
-        self.chkSplitConfig.setGeometry(QRect(940 + variation * 3, 230, 75, defaultSize))
+        standardToolGroup = QGroupBox("Standard Tools")
 
-        self.chkLogcat = QCheckBox("Logcat", centralWidget)
-        self.chkLogcat.setGeometry(QRect(1020 + variation * 3, 230, 75, defaultSize))
+        standardToolLayout = QHBoxLayout()
+        standardToolLayout.setSpacing(4)
+        standardToolLayout.setContentsMargins(6, 6, 6, 6)
 
-        # Text areas
-        self.txtFileContent = QTextEdit(centralWidget)
-        self.txtFileContent.setGeometry(QRect(10, 260, 1080, 430))
+        standardToolLayout.addWidget(self.btnAPKTool)
+        standardToolLayout.addWidget(self.btnJDGUI)
+        standardToolLayout.addWidget(self.btnMobSF)
 
-        self.txtLogcat = QTextEdit(centralWidget)
-        self.txtLogcat.setGeometry(QRect(10, 260, 1080, 430))
+        standardToolGroup.setLayout(standardToolLayout)
 
+        row2.addWidget(standardToolGroup)
+
+        # ------------------------------------------------------------
+        # Frida Group
+        # ------------------------------------------------------------
+
+        fridaGroup = QGroupBox("Frida Scripts")
+
+        fridaLayout = QHBoxLayout()
+        fridaLayout.setSpacing(4)
+        fridaLayout.setContentsMargins(6, 6, 6, 6)
+
+        fridaLayout.addWidget(self.btnFridaSSLUnPin)
+        fridaLayout.addWidget(self.btnFridump)
+
+        fridaGroup.setLayout(fridaLayout)
+
+        row2.addWidget(fridaGroup)
+
+        # ------------------------------------------------------------
+        # Re-install + Split Config Group
+        # ------------------------------------------------------------
+        reinstallGroup = QGroupBox("Install")
+
+        reinstallLayout = QHBoxLayout()
+        reinstallLayout.setSpacing(4)
+        reinstallLayout.setContentsMargins(6, 6, 6, 6)
+
+        reinstallLayout.addWidget(self.chkSplitConfig)
+        reinstallLayout.addWidget(self.btnReinstall)
+
+        reinstallGroup.setLayout(reinstallLayout)
+
+        row2.addWidget(reinstallGroup)
+
+        # ------------------------------------------------------------
+        # Standard Tool Group
+        # ------------------------------------------------------------
+
+        logcatAndAppViewGroup = QGroupBox("App Data")
+
+        logcatAndAppViewLayout = QHBoxLayout()
+        logcatAndAppViewLayout.setSpacing(4)
+        logcatAndAppViewLayout.setContentsMargins(6, 6, 6, 6)
+
+        logcatAndAppViewLayout.addWidget(self.btnPullData)
+        logcatAndAppViewLayout.addWidget(self.chkLogcat)
+
+        logcatAndAppViewGroup.setLayout(logcatAndAppViewLayout)
+
+        row2.addWidget(logcatAndAppViewGroup)
+        # ------------------------------------------------------------
+
+        row2.addStretch()
+
+        rootLayout.addLayout(row2)
+
+        # ─────────────────────────────────────────────────────────────
+        # Title Row
+        # ─────────────────────────────────────────────────────────────
+        row3 = QHBoxLayout()
+
+        self.lblFileContent = QLabel("Logcat Logs")
+
+        row3.addWidget(self.lblFileContent)
+        row3.addStretch()
+
+        row3.addWidget(self.chkURLDecode)
+        row3.addWidget(self.chkHtmlDecode)
+
+        rootLayout.addLayout(row3)
+
+        # ─────────────────────────────────────────────────────────────
+        # STACK WIDGET
+        # ─────────────────────────────────────────────────────────────
+        self.stackWidget = QStackedWidget()
+
+        # ============================================================
+        # PAGE 1 : LOGCAT
+        # ============================================================
+        self.logcatPage = QWidget()
+
+        logcatLayout = QVBoxLayout(self.logcatPage)
+        logcatLayout.setContentsMargins(0, 0, 0, 0)
+
+        self.txtLogcat = QTextEdit()
+
+        self.txtLogcat.setSizePolicy(
+            QSizePolicy.Expanding,
+            QSizePolicy.Expanding
+        )
+
+        logcatLayout.addWidget(self.txtLogcat)
+
+        self.stackWidget.addWidget(self.logcatPage)
+
+        # ============================================================
+        # PAGE 2 : FILE BROWSER
+        # ============================================================
+        self.fileBrowserPage = QWidget()
+
+        fileLayout = QVBoxLayout(self.fileBrowserPage)
+        fileLayout.setContentsMargins(0, 0, 0, 0)
+
+        self.splitter = QSplitter(Qt.Horizontal)
+
+        # ------------------------------------------------------------
+        # FILE SYSTEM MODEL
+        # ------------------------------------------------------------
+        self.fileModel = QFileSystemModel()
+        self.fileModel.setRootPath("")
+
+        # ------------------------------------------------------------
+        # LEFT SIDE : TREE VIEW
+        # ------------------------------------------------------------
+        self.treeView = QTreeView()
+        self.treeView.setModel(self.fileModel)
+
+        self.treeView.setAnimated(True)
+        self.treeView.setIndentation(18)
+        self.treeView.setSortingEnabled(True)
+
+        # Hide unnecessary columns
+        self.treeView.hideColumn(1)
+        self.treeView.hideColumn(2)
+        self.treeView.hideColumn(3)
+
+        # ------------------------------------------------------------
+        # RIGHT SIDE : FILE CONTENT
+        # ------------------------------------------------------------
+        self.txtFileContent = QTextEdit()
+        self.txtFileContent.setReadOnly(True)
+
+        self.splitter.addWidget(self.treeView)
+        self.splitter.addWidget(self.txtFileContent)
+
+        self.splitter.setSizes([350, 850])
+
+        fileLayout.addWidget(self.splitter)
+
+        self.stackWidget.addWidget(self.fileBrowserPage)
+
+        # Default page
+        self.stackWidget.setCurrentWidget(self.logcatPage)
+
+        rootLayout.addWidget(self.stackWidget, 1)
+
+    # ─────────────────────────────────────────────────────────────
+    # Close Event
+    # ─────────────────────────────────────────────────────────────
     def closeEvent(self, event):
+
         GlobalVariables.isClose = True
-        event.accept()  # make sure window closes properly
+
+        event.accept()
+
+    def FolderExistPopup(self):
+        reply = QMessageBox.question(
+            self,
+            "Folder Exists",
+            f"Folder already exists: Delete it?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+
+        if reply == QMessageBox.Yes:
+            return True
+        return False
+
+    def ShowDirectoryView(self, dirPath):
+        # --------------------------------------------------------
+        # SHOW FOLDER IN TREE VIEW
+        # --------------------------------------------------------
+        root_index = self.fileModel.index(dirPath)
+
+        self.treeView.setRootIndex(root_index)
+
+        # Switch to file browser page
+        self.chkLogcat.setChecked(False)
+
+        self.stackWidget.setCurrentWidget(
+            self.fileBrowserPage
+        )
+
+        self.lblFileContent.setText(
+            f"Browsing : {dirPath}"
+        )

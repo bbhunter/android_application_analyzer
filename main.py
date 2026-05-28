@@ -14,6 +14,8 @@ from gui import *
 from banner import *
 from logcat import *
 from GlobalVariables import *
+import shutil
+import tarfile
 
 class Main:
 	def __init__(self, mainWin):
@@ -168,12 +170,12 @@ class Main:
 	def ListApplicationContent(self):
 		appName=self.mainWin.cmbApp.currentText()
 		appContents=self.GetApplicationContent(appName)
-		self.mainWin.lstAppDirs.clear()
+		'''self.mainWin.lstAppDirs.clear()
 		for appContent in appContents:
-			self.mainWin.lstAppDirs.addItem(QListWidgetItem(appContent))
+			self.mainWin.lstAppDirs.addItem(QListWidgetItem(appContent))'''
 
 	def ListFileFromDir(self):
-		if len(self.mainWin.lstAppDirs.selectedItems()) == 1:
+		'''if len(self.mainWin.lstAppDirs.selectedItems()) == 1:
 			appName=self.mainWin.cmbApp.currentText()
 			appDirName=str(self.mainWin.lstAppDirs.selectedItems()[0].text())
 
@@ -182,7 +184,8 @@ class Main:
 			for file in appDirFiles:
 				self.mainWin.lstAppDirFiles.addItem(QListWidgetItem(file))
 		else:
-			print ("Multiple Item Selected")
+			print ("Multiple Item Selected")'''
+		print ("called")
 
 	def DisplayFileContent(self):
 		mainWin.chkLogcat.setChecked(False)
@@ -325,16 +328,49 @@ class Main:
 		else:
 			self.globalVariables.ExecuteCommand("-s {} uninstall {}".format(self.device, apkName))
 			self.globalVariables.ExecuteCommand("-s {} install {}/{}/dist/{}-aligned-debugSigned.apk".format(self.device, self.globalVariables.outputDir, apkName, apkName))
-		
-	def RunSnapshot(self):
+	
+	def CopyFolderFromAndroidDevice(self, basePath, outputPath):
 		apkName=self.mainWin.cmbApp.currentText()
-		outputDir="{}/{}_{}".format(self.globalVariables.snapshotDir, apkName, str(datetime.now()).replace(" ", "_").replace(":","_"))
-		if not os.path.exists(outputDir):
-			os.mkdir(outputDir)
-		cmd="{} | {} {}".format(self.ComposeCmd("ls '/data/app/'"), self.globalVariables.isWindowsOS and "findstr" or "grep", apkName)
-		appDir=self.globalVariables.ExecuteCommand(cmd).strip()
-		self.globalVariables.ExecuteCommand("-s {} pull /data/data/{}/ {}/data_data".format(self.device, apkName, outputDir))
-		self.globalVariables.ExecuteCommand("-s {} pull /data/app/{}/ {}/data_app".format(self.device, appDir, outputDir))
+
+		dirPath = "{}/{}".format(self.globalVariables.appDataDir, apkName)
+		subDirPath="{}/{}".format(dirPath, outputPath)
+		if os.path.exists(subDirPath):
+			if self.mainWin.FolderExistPopup():
+				shutil.rmtree(subDirPath)
+		else:
+			os.makedirs(subDirPath, exist_ok=True)
+
+		output=self.globalVariables.ExecuteCommand(self.ComposeCmd("cp -r '{}' {}".format(basePath, self.globalVariables.androidTmpDir)), True, True, True)
+
+		if "cp: bad" in output:
+			return
+
+		self.globalVariables.ExecuteCommand(self.ComposeCmd("tar -cf {}/{}.tar {}/{}".format(self.globalVariables.androidTmpDir, apkName, self.globalVariables.androidTmpDir, apkName)))
+		
+		self.globalVariables.ExecuteCommand("-s {} pull {}/{}.tar {}".format(self.device, self.globalVariables.androidTmpDir, apkName, dirPath))
+
+		with tarfile.open("{}/{}.tar".format(dirPath, apkName), "r") as tar:
+			tar.extractall(dirPath)
+
+
+		shutil.copytree("{}{}/{}".format(dirPath, self.globalVariables.androidTmpDir, apkName), "{}/{}".format(dirPath, outputPath), dirs_exist_ok=True)
+
+		tmpPath="{}/{}.tar".format(dirPath, apkName)
+		if os.path.exists(tmpPath):
+			os.remove(tmpPath)
+
+		tmpPath="{}/data".format(dirPath)
+		if os.path.exists(tmpPath):
+			shutil.rmtree(tmpPath)
+
+		self.globalVariables.ExecuteCommand(self.ComposeCmd("rm -rf  {}/{}*".format(self.globalVariables.androidTmpDir, apkName)))
+
+	def PullApplicationData(self):
+		apkName=self.mainWin.cmbApp.currentText()
+		self.CopyFolderFromAndroidDevice("/data/data/{}".format(apkName), "data_data")
+		self.CopyFolderFromAndroidDevice("/sdcard/Android/data/{}".format(apkName), "sdcard")
+		self.mainWin.ShowDirectoryView("{}/{}".format(self.globalVariables.appDataDir, apkName))
+		
 
 	def StartFridaServer(self):
 		cmd="{} | {} {}".format(self.ComposeCmd("ps"), self.globalVariables.isWindowsOS and "findstr" or "grep", self.globalVariables.fridaServer)
@@ -381,8 +417,6 @@ if __name__ == "__main__":
 
 	    mainWin.cmbDevice.currentIndexChanged.connect(lambda: main.ListApplication())
 	    mainWin.cmbApp.currentIndexChanged.connect(lambda: main.ListApplicationContent())
-	    mainWin.lstAppDirs.itemClicked.connect(lambda: main.ListFileFromDir())
-	    mainWin.lstAppDirFiles.itemClicked.connect(lambda: main.DisplayFileContent())
 	    mainWin.chkHideDefaultApp.stateChanged.connect(lambda: main.HideDefaultApplication())
 	    mainWin.chkSplitConfig.stateChanged.connect(lambda: main.ChangeSplitConfigValue())
 	    mainWin.chkLogcat.stateChanged.connect(lambda: main.DisplayLogcat())
@@ -391,15 +425,14 @@ if __name__ == "__main__":
 	    mainWin.btnAPKTool.clicked.connect(lambda: main.RunAPKTool())
 	    mainWin.btnJDGUI.clicked.connect(lambda: main.RunJDGUITool())
 	    mainWin.btnMobSF.clicked.connect(lambda: main.RunMobSFTool())
-	    mainWin.btnSnapshot.clicked.connect(lambda: main.RunSnapshot())
 	    mainWin.btnReinstall.clicked.connect(lambda: main.RunReinstallAPK())
 	    mainWin.btnFridaSSLUnPin.clicked.connect(lambda: main.RunUniversalFridaSSLUnPinning())
 	    mainWin.btnFridump.clicked.connect(lambda: main.RunFridump())
 	    mainWin.btnReloadApps.clicked.connect(lambda: main.ReloadApplications())
+	    mainWin.btnPullData.clicked.connect(lambda: main.PullApplicationData())
 	    mainWin.chkLogcat.setChecked(True)
 	    mainWin.chkHtmlDecode.setVisible(False)
 	    mainWin.chkURLDecode.setVisible(False)
-	    mainWin.txtFileContent.setVisible(False)
 	    logcat=Logcat(mainWin, mainWin.cmbDevice.currentText())
 	    logcat.start()
 	    main.ListApplication()

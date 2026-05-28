@@ -340,7 +340,8 @@ ASALocalRun/
 .DS_Store
 
 
-apps/*
 android_application_analyzer/*
 dbs/*
-snapshots/*
+appData/*
+apps/*
+pulled/*

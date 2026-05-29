@@ -278,8 +278,15 @@ class Gui(QMainWindow):
     # Close Event
     # ─────────────────────────────────────────────────────────────
     def closeEvent(self, event):
-
         GlobalVariables.isClose = True
+
+        # Stop the logcat thread cleanly before the window is destroyed.
+        # Without this Qt destroys the QThread object while it is still
+        # running, causing: QThread: Destroyed while thread is still running
+        if hasattr(self, '_logcat_thread') and self._logcat_thread is not None:
+            self._logcat_thread.stop()
+            self._logcat_thread.wait(5000)  # give it up to 5 s to finish
+            self._logcat_thread = None
 
         event.accept()
 

@@ -182,6 +182,7 @@ class Main:
 			mainWin.treeView.setVisible(False)
 			mainWin.splitter.setVisible(False)
 			mainWin.txtLogcat.setVisible(True)
+			mainWin.stackWidget.setCurrentWidget(mainWin.logcatPage)
 			mainWin.lblFileContent.setText("Logcat Logs")
 		else:
 			mainWin.chkHtmlDecode.setVisible(True)
@@ -190,6 +191,7 @@ class Main:
 			mainWin.treeView.setVisible(True)
 			mainWin.splitter.setVisible(True)
 			mainWin.txtLogcat.setVisible(False)
+			mainWin.stackWidget.setCurrentWidget(mainWin.fileBrowserPage)
 			self.PullApplicationData()
 
 	def DecodeHTMLEntity(self):
@@ -363,14 +365,10 @@ if __name__ == "__main__":
 		mainWin.chkLogcat.setChecked(True)
 		mainWin.chkHtmlDecode.setVisible(False)
 		mainWin.chkURLDecode.setVisible(False)
-		logcat=Logcat(mainWin, mainWin.cmbDevice.currentText())
+		logcat = Logcat(mainWin, mainWin.cmbDevice.currentText())
+		mainWin._logcat_thread = logcat   # keep reference for clean shutdown
 		logcat.start()
 		main.ListApplication()
 		sys.exit( app.exec() )
 	else:
 		print ("No emulator found. Re-run the applicaiton after connecting device\n\n")
-
-
-
-
-

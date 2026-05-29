@@ -19,7 +19,8 @@ from PySide6.QtWidgets import (
     QFileSystemModel,
     QSplitter,
     QStackedWidget,
-    QMessageBox
+    QMessageBox,
+    QLineEdit
 )
 
 from PySide6.QtCore import QSize, Qt
@@ -180,8 +181,6 @@ class Gui(QMainWindow):
         row2.addWidget(logcatAndAppViewGroup)
         # ------------------------------------------------------------
 
-        row2.addStretch()
-
         rootLayout.addLayout(row2)
 
         # ─────────────────────────────────────────────────────────────
@@ -194,9 +193,54 @@ class Gui(QMainWindow):
         row3.addWidget(self.lblFileContent)
         row3.addStretch()
 
-        row3.addWidget(self.chkURLDecode)
-        row3.addWidget(self.chkHtmlDecode)
+        # ------------------------------------------------------------
+        # Encode Decode Group
+        # ------------------------------------------------------------
+        self.txtSearch = QLineEdit()
+        self.txtSearch.setPlaceholderText("Search...")
+        self.txtSearch.setFixedWidth(200)
+        self.btnSearchPrev = QPushButton("\u25b2")
+        self.btnSearchPrev.setFixedWidth(28)
+        self.btnSearchPrev.setToolTip("Previous match")
+        self.btnSearchNext = QPushButton("\u25bc")
+        self.btnSearchNext.setFixedWidth(28)
+        self.btnSearchNext.setToolTip("Next match")
+        self.lblSearchStatus = QLabel("")
+        self.lblSearchStatus.setFixedWidth(80)
 
+        self.searchGroup = QGroupBox("Search")
+        searchLayout = QHBoxLayout()
+        searchLayout.setSpacing(4)
+        searchLayout.setContentsMargins(6, 2, 6, 2)
+        searchLayout.addWidget(self.txtSearch)
+        searchLayout.addWidget(self.btnSearchPrev)
+        searchLayout.addWidget(self.btnSearchNext)
+        searchLayout.addWidget(self.lblSearchStatus)
+        self.searchGroup.setLayout(searchLayout)
+
+        row3.addWidget(self.lblFileContent)
+        row3.addStretch()
+        row3.addWidget(self.searchGroup)
+
+
+        # ------------------------------------------------------------
+        # Encode Decode Group
+        # ------------------------------------------------------------
+
+        row2.addStretch()
+        self.encodeDecodeGroup = QGroupBox("Encode/Decode")
+
+        encodeDecodeLayout = QHBoxLayout()
+        encodeDecodeLayout.setSpacing(4)
+        encodeDecodeLayout.setContentsMargins(6, 6, 6, 6)
+
+        encodeDecodeLayout.addWidget(self.chkURLDecode)
+        encodeDecodeLayout.addWidget(self.chkHtmlDecode)
+
+        self.encodeDecodeGroup.setLayout(encodeDecodeLayout)
+        row3.addWidget(self.encodeDecodeGroup)
+        #---------------------------------------------------------------
+        
         rootLayout.addLayout(row3)
 
         # ─────────────────────────────────────────────────────────────

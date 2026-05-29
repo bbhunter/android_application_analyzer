@@ -168,11 +168,13 @@ class Main:
 		if mainWin.chkLogcat.isChecked():
 			mainWin.chkURLDecode.setVisible(False)
 			mainWin.chkHtmlDecode.setVisible(False)
+			mainWin.encodeDecodeGroup.setVisible(False)
 			mainWin.lblFileContent.setText('Logcat Logs')
 			mainWin.stackWidget.setCurrentWidget(mainWin.logcatPage)
 		else:
 			mainWin.chkHtmlDecode.setVisible(True)
 			mainWin.chkURLDecode.setVisible(True)
+			mainWin.encodeDecodeGroup.setVisible(True)
 			mainWin.stackWidget.setCurrentWidget(mainWin.fileBrowserPage)
 			self.PullApplicationData()
 
@@ -327,6 +329,37 @@ class Main:
 		except OSError:
 			return 'text'
 		
+	# ------------------------------------------------------------------
+	# Search in txtFileContent
+	# ------------------------------------------------------------------
+	def GetActiveTextEdit(self):
+		"""Return whichever QTextEdit is currently visible."""
+		if mainWin.stackWidget.currentWidget() == mainWin.logcatPage:
+			return mainWin.txtLogcat
+		return mainWin.txtFileContent
+
+	def SearchText(self, forward=True):
+		from PySide6.QtGui import QTextDocument
+		term = mainWin.txtSearch.text()
+		if not term:
+			mainWin.lblSearchStatus.setText('')
+			return
+		editor = self.GetActiveTextEdit()
+		flags = QTextDocument.FindFlag(0)
+		if not forward:
+			flags |= QTextDocument.FindBackward
+		found = editor.find(term, flags)
+		if not found:
+			# Wrap around
+			cursor = editor.textCursor()
+			if forward:
+				cursor.movePosition(cursor.MoveOperation.Start)
+			else:
+				cursor.movePosition(cursor.MoveOperation.End)
+			editor.setTextCursor(cursor)
+			found = editor.find(term, flags)
+		mainWin.lblSearchStatus.setText('Found' if found else 'Not found')
+
 	def TreeViewItemClicked(self, index):
 		path = self.mainWin.fileModel.filePath(index)
 		if os.path.isfile(path):
@@ -361,9 +394,13 @@ if __name__ == "__main__":
 		mainWin.btnReloadApps.clicked.connect(lambda: main.ReloadApplications())
 		mainWin.btnPullData.clicked.connect(lambda: main.PullApplicationData())
 		mainWin.treeView.clicked.connect(lambda index: main.TreeViewItemClicked(index))
+		mainWin.btnSearchNext.clicked.connect(lambda: main.SearchText(forward=True))
+		mainWin.btnSearchPrev.clicked.connect(lambda: main.SearchText(forward=False))
+		mainWin.txtSearch.returnPressed.connect(lambda: main.SearchText(forward=True))
 		mainWin.chkLogcat.setChecked(True)
 		mainWin.chkHtmlDecode.setVisible(False)
 		mainWin.chkURLDecode.setVisible(False)
+		mainWin.encodeDecodeGroup.setVisible(False)
 		logcat = Logcat(mainWin, mainWin.cmbDevice.currentText())
 		mainWin._logcat_thread = logcat   # keep reference for clean shutdown
 		logcat.start()

@@ -8,6 +8,7 @@ import sqlite3
 import os
 from datetime import datetime
 import urllib
+import urllib.parse
 import html
 import webbrowser 
 from gui import *
@@ -77,8 +78,7 @@ class Main:
 				self.mainWin.cmbApp.addItem(app)
 
 	def ApplicationSelectionChanged(self):
-		if not self.mainWin.chkLogcat.isChecked():
-			self.mainWin.chkLogcat.setChecked(True)
+		self.DisplayLogcat()
 
 	def GetAllTables(self, dbPath):
 		tables=[]
@@ -110,62 +110,52 @@ class Main:
 			self.ListApplication(True)
 		else:
 			self.ListApplication(False)
+		self.DisplayLogcat()
 
-	def DisplayFileContent(self):
-		mainWin.chkLogcat.setChecked(False)
-		if len(self.mainWin.lstAppDirFiles.selectedItems()) == 1:
-			filePath=(self.mainWin.lstAppDirFiles.selectedItems()[0].text())
-			fileContent=self.GetFileContent(filePath).strip()
-			if fileContent.find("SQLite format 3") == 0:
-				if not os.path.exists("dbs"):
-					os.makedirs("dbs")
-				fileName=filePath[filePath.rfind('/')+1:]
-				dbPath="./dbs/"+fileName
-				self.DownloadDBFile(filePath, dbPath)
-				tableList=self.GetAllTables(dbPath)
-				self.mainWin.txtFileContent.setText("SQLiteDB : "+dbPath)
-				for table in tableList:
-					self.mainWin.txtFileContent.append("\n\n\nTable => " + table.format(type(str), repr(str)))
-					rows=self.GetTableData(dbPath, table)
-					isFirstRow=True
-					for columns in rows:
-						rowData=""
-						for column in columns:
-							try:
-								rowData+=column.format(type(str), repr(str))
-								if not isFirstRow:
-									rowData+=" | "
-							except:
-								rowData+=str(column)
-								if not isFirstRow:
-									rowData+=" | "
-						isFirstRow=False
-						dataLen = len(rowData)
-						if dataLen > 174:
-							dataLen = 174
-						self.mainWin.txtFileContent.append("-"*dataLen)
-						self.mainWin.txtFileContent.append(rowData)
-						self.mainWin.txtFileContent.append("-"*dataLen)
-			elif fileContent.find("ELF") == 1:
-				if not os.path.exists("lib"):
-					os.makedirs("lib")
-				fileName=filePath[filePath.rfind('/')+1:]
-				libPath="./lib/"+fileName
-				self.DownloadDBFile(filePath, libPath)
-				self.mainWin.txtFileContent.setText("Performed \"strings\" command on : ELF lib :" + libPath + "\n\n")
-				self.mainWin.txtFileContent.append(self.globalVariables.ExecuteCommand("strings " + libPath, False))
-			else:
-				self.mainWin.txtFileContent.setText(fileContent)
-				
+	def DisplayFileContent(self, filePath=None):
+		if filePath is None:
+			filePath = getattr(self, '_lastFilePath', None)
+		if not filePath:
+			return
+		self._lastFilePath = filePath
+		fileType=self.DetectFileType(filePath)
+		if fileType == "sqlite":
+			tableList=self.GetAllTables(filePath)
+			for table in tableList:
+				self.mainWin.txtFileContent.append("\n\n\nTable => " + table.format(type(str), repr(str)))
+				rows=self.GetTableData(filePath, table)
+				isFirstRow=True
+				for columns in rows:
+					rowData=""
+					for column in columns:
+						try:
+							rowData+=column.format(type(str), repr(str))
+							if not isFirstRow:
+								rowData+=" | "
+						except:
+							rowData+=str(column)
+							if not isFirstRow:
+								rowData+=" | "
+					isFirstRow=False
+					dataLen = len(rowData)
+					if dataLen > 174:
+						dataLen = 174
+					self.mainWin.txtFileContent.append("-"*dataLen)
+					self.mainWin.txtFileContent.append(rowData)
+					self.mainWin.txtFileContent.append("-"*dataLen)
+		elif fileType == "elf":
+			self.mainWin.txtFileContent.setText("Performed \"strings\" command on : ELF lib :" + filePath + "\n\n")
+			self.mainWin.txtFileContent.append(self.globalVariables.ExecuteCommand("strings " + filePath, False))
 		else:
-			print ("Multiple Item Selected")
+			with open(filePath, 'r', encoding='utf-8', errors='replace') as f:
+				self.mainWin.txtFileContent.setPlainText(f.read())
+
 		if mainWin.chkHtmlDecode.isChecked():
 			text=html.unescape(self.mainWin.txtFileContent.toPlainText())
 			self.mainWin.txtFileContent.setText(text)
 
 		if mainWin.chkURLDecode.isChecked():
-			text=self.mainWin.txtFileContent.toPlainText()
-			text=text.encode('ascii', 'ignore') 
+			text = urllib.parse.unquote(self.mainWin.txtFileContent.toPlainText())
 			self.mainWin.txtFileContent.setText(text)
 
 	def ChangeSplitConfigValue(self):
@@ -178,34 +168,24 @@ class Main:
 		if mainWin.chkLogcat.isChecked():
 			mainWin.chkURLDecode.setVisible(False)
 			mainWin.chkHtmlDecode.setVisible(False)
-			mainWin.txtFileContent.setVisible(False)
-			mainWin.treeView.setVisible(False)
-			mainWin.splitter.setVisible(False)
-			mainWin.txtLogcat.setVisible(True)
+			mainWin.lblFileContent.setText('Logcat Logs')
 			mainWin.stackWidget.setCurrentWidget(mainWin.logcatPage)
-			mainWin.lblFileContent.setText("Logcat Logs")
 		else:
 			mainWin.chkHtmlDecode.setVisible(True)
 			mainWin.chkURLDecode.setVisible(True)
-			mainWin.txtFileContent.setVisible(True)
-			mainWin.treeView.setVisible(True)
-			mainWin.splitter.setVisible(True)
-			mainWin.txtLogcat.setVisible(False)
 			mainWin.stackWidget.setCurrentWidget(mainWin.fileBrowserPage)
 			self.PullApplicationData()
 
 	def DecodeHTMLEntity(self):
-		text=self.mainWin.txtFileContent.toPlainText()
 		if mainWin.chkHtmlDecode.isChecked():
-			text=html.unescape(text)
+			text=html.unescape(self.mainWin.txtFileContent.toPlainText())
 			self.mainWin.txtFileContent.setText(text) 
 		else:
 			self.DisplayFileContent()
 
 	def DecodeURL(self):
-		text=self.mainWin.txtFileContent.toPlainText()
 		if mainWin.chkURLDecode.isChecked():
-			text=text.encode('ascii', 'ignore') 
+			text = urllib.parse.unquote(self.mainWin.txtFileContent.toPlainText())
 			self.mainWin.txtFileContent.setText(text)
 		else:
 			self.DisplayFileContent()
@@ -333,6 +313,24 @@ class Main:
 
 	def ReloadApplications(self):
 		self.HideDefaultApplication()
+		
+	def DetectFileType(self, path):
+		try:
+			with open(path, 'rb') as f:
+				magic=f.read(16)
+				print(magic)
+				if magic[:16].find(b'SQLite format 3\x00') >=0:
+					return 'sqlite'
+				if magic[:4] == b'\x7fELF':
+					return 'elf'
+				return 'text'
+		except OSError:
+			return 'text'
+		
+	def TreeViewItemClicked(self, index):
+		path = self.mainWin.fileModel.filePath(index)
+		if os.path.isfile(path):
+			self.DisplayFileContent(path)
 
 if __name__ == "__main__":
 	app = QtWidgets.QApplication(sys.argv)
@@ -362,6 +360,7 @@ if __name__ == "__main__":
 		mainWin.btnFridump.clicked.connect(lambda: main.RunFridump())
 		mainWin.btnReloadApps.clicked.connect(lambda: main.ReloadApplications())
 		mainWin.btnPullData.clicked.connect(lambda: main.PullApplicationData())
+		mainWin.treeView.clicked.connect(lambda index: main.TreeViewItemClicked(index))
 		mainWin.chkLogcat.setChecked(True)
 		mainWin.chkHtmlDecode.setVisible(False)
 		mainWin.chkURLDecode.setVisible(False)

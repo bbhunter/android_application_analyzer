@@ -280,15 +280,16 @@ class Gui(QMainWindow):
     def closeEvent(self, event):
         GlobalVariables.isClose = True
 
-        # Stop the logcat thread cleanly before the window is destroyed.
-        # Without this Qt destroys the QThread object while it is still
-        # running, causing: QThread: Destroyed while thread is still running
-        if hasattr(self, '_logcat_thread') and self._logcat_thread is not None:
-            self._logcat_thread.stop()
-            self._logcat_thread.wait(5000)  # give it up to 5 s to finish
-            self._logcat_thread = None
-
+        # Accept the close immediately so the window disappears at once.
+        # Then signal the thread to stop — no blocking wait on the UI thread.
+        # The thread cleans itself up via the finished signal.
         event.accept()
+
+        if hasattr(self, '_logcat_thread') and self._logcat_thread is not None:
+            t = self._logcat_thread
+            self._logcat_thread = None
+            t.finished.connect(t.deleteLater)  # Qt cleans up once done
+            t.stop()                            # signals thread to exit
 
     def FolderExistPopup(self):
         reply = QMessageBox.question(
